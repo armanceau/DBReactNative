@@ -9,20 +9,38 @@ export default function App() {
   const [names, setNames] = useState([]);
   const [currentName, setCurrentName] = useState(undefined);
 
-  useEffect(()=>{
+useEffect(() => {
+  db.transaction(tx => {
+    tx.executeSql(
+      "CREATE TABLE IF NOT EXISTS utilisateurs (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, email TEXT)",
+      [],
+      (txObj, resultSet) => {
+        txObj.executeSql(
+          "INSERT OR IGNORE INTO utilisateurs (nom, email) VALUES (?, ?), (?, ?), (?, ?)",
+          ['John Doe', 'john.doe@email.com', 'Jane Doe', 'jane.doe@email.com', 'Bob Smith', 'bob.smith@email.com'],
+          (txObj, resultSet) => {
+            // Vous pouvez ajouter d'autres transactions d'insertion si nécessaire
+          },
+          (txObj, error) => console.log(error)
+        );
+      },
+      (txObj, error) => console.log(error)
+    );
+  });
+  
+    // Récupération des données
     db.transaction(tx => {
-      tx.executeSql('CREATE TABLE IF NOT EXISTS names (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)')
-    });
-
-    db.transaction(tx => {
-      tx.executeSql('SELECT * FROM names', null,
+      tx.executeSql(
+        'SELECT * FROM utilisateurs',
+        [],
         (txObj, resultSet) => setNames(resultSet.rows._array),
         (txObj, error) => console.log(error)
       );
     });
-
+  
     setIsLoading(false);
   }, []);
+  
 
   if(isLoading){
     return(
@@ -32,25 +50,12 @@ export default function App() {
     )
   }
 
-  const addName = () => {
-    db.transaction(tx => {
-      tx.executeSql('INSERT INTO names (name) values (?)', [currentName],
-        (txObj, resultSet) => {
-          let existingNames = [...names];
-          existingNames.push({ id: resultSet.insertId, name: currentName});
-          setNames(existingNames);
-          setCurrentName(undefined);
-        },
-        (txObj, error) => console.log(error)
-      );
-    });
-  }
-
   const showNames = () => {
     return names.map((name, index) => {
       return (
-        <View key={index} style={styles.row}>
+        <View key={index}>
           <Text>{name.name}</Text>
+          <Text>{name.email}</Text>
         </View>
       );
     });
@@ -58,8 +63,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <TextInput value={currentName} placeholder='name' onChangeText={setCurrentName}/>
-      <Button title="Add Name" onPress={addName}/>
       {showNames()}
       <StatusBar style="auto" />
     </View>
